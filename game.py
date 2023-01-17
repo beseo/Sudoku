@@ -1,24 +1,14 @@
 import pygame as pg
 import time
-
-WIDTH = 650
+from os import path
+from retrieve_board import get_board
+WIDTH = 750
+HEIGHT = 650
 BACKGROUND = (251, 234, 235) #pink-ish background
 LINE_COLOR = (0, 0, 0)       #black lines
 NUM_COLOR = (47, 60, 126)    #blue numbers
 FILL_COLOR = (119, 237, 160) #when number is filled
-
 EMPTY_COLOR = (240, 108, 123)#when space is cleared
-board = [
-    [8, 0, 0, 0, 5, 2, 0, 4, 0],
-    [7, 0, 0, 0, 0, 0, 0, 8, 1],
-    [0, 4, 5, 0, 7, 8, 0, 9, 6],
-    [0, 0, 0, 0, 6, 0, 1, 0, 0],
-    [0, 6, 2, 8, 9, 5, 3, 7, 0],
-    [4, 7, 0, 0, 3, 1, 0, 0, 0],
-    [9, 1, 3, 7, 0, 4, 0, 5, 8],
-    [0, 0, 7, 0, 0, 0, 0, 3, 2],
-    [0, 0, 0, 0, 8, 6, 0, 0, 0]
-]
 
 '''
 Helper method to declutter main() loop
@@ -54,8 +44,8 @@ def fill_board(window, font, board, finish = False):
                 fill_space(window, board, j, i, BACKGROUND)
                 pg.display.update()
                 fill_space(window, board, j, i, FILL_COLOR)
-                text = font.render(str(board[i][j]), True, NUM_COLOR)
-                window.blit(text, (117 + 50*j, 110+50*i)) 
+                text, rect = font.render(str(board[i][j]), NUM_COLOR)
+                window.blit(text, (118 + 50*j, 115+50*i)) 
                 pg.display.update()
     else:
         flower(window, font, board)
@@ -82,7 +72,7 @@ def flower(window, font, board):
             fill_space(window, board, 4-i, 4, BACKGROUND)
             fill_space(window, board, 4, 4+i, BACKGROUND)
             fill_space(window, board, 4, 4-i, BACKGROUND)
-            time.sleep(0.01)
+            time.sleep(0.015)
             pg.display.update()
             # text = font.render(str(board[i][j]), True, NUM_COLOR)
             # window.blit(text, (117 + 50*j, 110+50*i)) 
@@ -96,8 +86,32 @@ def flower(window, font, board):
 def fill_space(window, board, row, col, color):
     rect = pg.Rect(102 + 50 * row, 102 + 50 * col, 47,47)
     pg.draw.rect(window, color, rect)
-
+def create_empty_board(window):
+    window.fill(BACKGROUND)
+    draw_board_lines(window)
     
+
+'''
+Button class. 
+'''
+class Button():
+    def __init__(self, x, y, image, window):
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x,y)
+        self.window = window
+        self.clicked = False
+    def draw(self, window):
+        pos = pg.mouse.get_pos()
+        if self.rect.collidepoint(pos):
+            if pg.mouse.get_pressed()[0] == 1 and self.clicked == False:
+                self.clicked = True
+        if pg.mouse.get_pressed()[0] == 0:
+            self.clicked = False
+
+        #draw button onto screen
+        window.blit(self.image, (self.rect.x, self.rect.y))
+
 #------------------------------- SOLVER SECTION -------------------------
 def safe(board, row, column, num):
     row_clear = num not in board[row]
@@ -146,7 +160,6 @@ def solve(window, font, board, row = 0, col = 0):
         for num in range(1,10): #valid sudoku numbers
             fill_space(window, board, row, col, EMPTY_COLOR)
             pg.display.update()
-            time.sleep(0.0015)
             if safe(board, row, col, num):
                 board[row][col] = num
                 fill_board(window, font, board)
@@ -159,26 +172,83 @@ def solve(window, font, board, row = 0, col = 0):
 #main loop
 def main():
     pg.init()
-
     #make sure font package is loaded
     if not pg.font.get_init(): 
         pg.font.init()
-    font = pg.font.SysFont('Roboto', 50) #choose fonts
+     
+    #choose fonts
+    font = pg.freetype.Font(path.join('fonts', 'Minecraft.ttf'), size = 27.5)   #for numbers
+    pix_font = pg.freetype.Font(path.join('fonts', 'Minecraft.ttf'), size = 25) #for timer
+    pix_font.underline = True
+    pix_font.strong = True
+
+    #initialize window
+    window = pg.display.set_mode((WIDTH, HEIGHT))
+    pg.display.set_caption("Sudoku Solver")
+
+    #load in images for additional sprites
+    instructions = pg.image.load(path.join('sprites', 'instructions.png')).convert() #text instructions
+    credit = pg.image.load(path.join('sprites', 'credit.png')).convert() 
+    version = pg.image.load(path.join('sprites', 'version.png')).convert()
+    timer = pg.image.load(path.join('sprites', 'timer.png')).convert()
+    #scale images
+    scale = 3
+    instructions = pg.transform.scale(instructions, (191 * scale, 24 * scale))
+    credit = pg.transform.scale(credit, (112 * scale, 11 * scale))
+    version = pg.transform.scale(version, (85 * scale, 10 * scale))
+    timer = pg.transform.scale(timer, (49 * scale * 1.2, 22 * scale * 1.2))
     
-    window = pg.display.set_mode((WIDTH, WIDTH))
-    pg.display.set_caption("Sudoku")
-    window.fill(BACKGROUND)
+    #load in images for buttons
+    start_img = pg.image.load(path.join('sprites', 'start_button.png')).convert_alpha()
+    reset_img = pg.image.load(path.join('sprites', 'reset_button.png')).convert_alpha()
+    #create buttons from Button class
+    start_button = Button(WIDTH - 175, 100, start_img, window)
+    reset_button = Button(WIDTH - 175, 250, reset_img, window)
 
-    draw_board_lines(window)
-
-    fill_board(window, font, board)
-    solve(window, font, board, 0, 0)
-    time.sleep(1)
-    fill_board(window, font, board, finish = True)
+    #main loop
     while True:
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
-                pg.quit()
-                return 
+        #fill the window with a new board and fill it
+        create_empty_board(window)
+        board = get_board('boards.txt')
+        fill_board(window, font, board)
+        
+        while (not start_button.clicked) and (not reset_button.clicked):
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    return
+
+            #buttons
+            start_button.draw(window)
+            reset_button.draw(window)
+
+            #additional sprites
+            window.blit(instructions, (10, 10))
+            window.blit(credit, (400, 600))
+            window.blit(version, (10, 600))
+            
+            pg.display.update()
+            if start_button.clicked:
+                #if 'solve' button pressed, solve the board
+                start_time = time.time() #time how long it takes to solve
+                solve(window, font, board, 0, 0)
+                end_time = time.time()   #ending time
+                exec_time = end_time - start_time #elapsed time
+                #elapsed = pix_font.render(str(exec_time), False, LINE_COLOR)\
+                
+                elapsed, rect = pix_font.render(("%.2f" % exec_time), LINE_COLOR)
+                window.blit(timer, (575, 400))
+                window.blit(elapsed, (558, 450))
+                time.sleep(1)
+
+                fill_board(window, font, board, finish = True)
+                start_button.clicked = False
+            elif reset_button.clicked:
+                #if 'reset' button pressed, create a new board
+                create_empty_board(window)
+                board = get_board('boards.txt')
+                fill_board(window, font, board, finish = False)
+                reset_button.clicked = False
+                time.sleep(0.05)
 
 main()
